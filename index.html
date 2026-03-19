@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Şantiye Atama Sistemi</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --accent: #f5a623;
+    --accent2: #e8531a;
+    --text: #f0ece4;
+    --text2: #8a8680;
+    --green: #4caf50;
+    --red: #e53935;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.9rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  header p {
+    font-size: 0.7rem;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  
+  .header-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .stats {
+    display: flex;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat {
+    flex: 1;
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--accent); }
+  .stat-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text2); }
+
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: calc(100vh - 108px);
+  }
+
+  /* LEFT: Workers */
+  .workers-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: background 0.2s;
+  }
+  
+  /* Çalışanı boşa çıkarmak için sol paneli sürükleme alanı yaptık */
+  .workers-panel.drag-over {
+    background: #1c1c1c;
+    border-right: 2px dashed var(--red);
+  }
+
+  .panel-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    color: var(--text2);
+  }
+
+  .badge {
+    background: var(--accent);
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .add-row {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .add-row input, .search-inp {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .add-row input { flex: 1; }
+  .add-row input:focus, .search-inp:focus { border-color: var(--accent); }
+  .add-row input::placeholder, .search-inp::placeholder { color: var(--text2); }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    padding: 7px 14px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { opacity: 0.85; }
+  
+  .btn-photo {
+    background: var(--green);
+    color: white;
+  }
+  
+  .btn-clear {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+  }
+  .btn-clear:hover {
+    background: var(--red);
+    color: white;
+  }
+
+  .search-row {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .search-inp { width: 100%; }
+
+  .workers-list {
+    overflow-y: auto;
+    flex: 1;
+    padding-bottom: 20px;
+  }
+  .workers-list::-webkit-scrollbar { width: 3px; }
+  .workers-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* Sürükle Bırak İmleç Stilleri */
+  .worker-row, .sw-item {
+    cursor: grab;
+  }
+  .worker-row:active, .sw-item:active {
+    cursor: grabbing;
+  }
+
+  .worker-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #1f1f1f;
+    transition: background 0.12s;
+  }
+  .worker-row:hover { background: var(--surface2); }
+
+  .w-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.75rem;
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  .w-name {
+    font-size: 0.82rem;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .w-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.73rem;
+    padding: 4px 6px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+    max-width: 115px;
+    transition: border-color 0.2s;
+  }
+  .w-select:focus { border-color: var(--accent); }
+  .w-select.assigned { color: var(--accent); border-color: var(--accent); }
+
+  .w-del {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+    display: none;
+  }
+  .worker-row:hover .w-del { display: block; }
+  .w-del:hover { color: var(--red); }
+
+  /* RIGHT: Sites */
+  .sites-panel {
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .sites-panel::-webkit-scrollbar { width: 3px; }
+  .sites-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .sites-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .sites-topbar-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 3px;
+    color: var(--text2);
+  }
+
+  .add-site-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .add-site-row input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.82rem;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.2s;
+  }
+  .add-site-row input:focus { border-color: var(--accent); }
+  .add-site-row input::placeholder { color: var(--text2); }
+
+  .sites-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+    gap: 14px;
+  }
+
+  .site-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+  
+  /* Sürükleme esnasında üzerine gelinen şantiye kartının görünümü */
+  .site-card.drag-over {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(245, 166, 35, 0.3);
+    transform: scale(1.02);
+    background: #1f1f1f;
+  }
+  
+  /* Sürükleme sırasında iç butonların karışmasını önler */
+  body.is-dragging .sw-remove, body.is-dragging .site-del-btn {
+    pointer-events: none;
+  }
+
+  .site-card-header {
+    background: var(--surface2);
+    padding: 12px 14px 10px;
+    border-bottom: 2px solid var(--accent2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .site-name-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .site-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .site-count {
+    font-size: 0.65rem;
+    color: var(--text2);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .site-del-btn {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    transition: color 0.15s;
+  }
+  .site-del-btn:hover { color: var(--red); }
+
+  .site-workers {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-height: 60px; /* Çalışan atamak için daha rahat bir boşluk */
+  }
+
+  .sw-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 5px 9px;
+  }
+
+  .sw-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.6rem;
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  .sw-name { font-size: 0.78rem; flex: 1; }
+
+  .sw-remove {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+  }
+  .sw-remove:hover { color: var(--red); }
+
+  .site-empty {
+    font-size: 0.72rem;
+    color: var(--text2);
+    text-align: center;
+    padding: 12px 0;
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  .empty-sites {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text2);
+    font-size: 0.82rem;
+  }
+
+  .notif {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--green);
+    color: #000;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 9px 18px;
+    border-radius: 6px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.22s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  .notif.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    .workers-panel { max-height: 55vh; }
+    .stats { flex-wrap: wrap; }
+    .stat { min-width: 50%; }
+    .sites-topbar { flex-direction: column; align-items: flex-start; }
+    header { flex-direction: column; align-items: stretch; gap: 15px; }
+    .header-actions { flex-direction: column; }
+    .header-actions .btn { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="5" fill="#f5a623" opacity="0.15"/>
+      <path d="M5 26h22M9 26V14l7-7 7 7v12" stroke="#f5a623" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="12" y="18" width="8" height="8" rx="1" stroke="#f5a623" stroke-width="1.4"/>
+    </svg>
+    <div>
+      <h1>ŞANTİYE ATAMA</h1>
+      <p>Personel Yönetim Sistemi</p>
+    </div>
+  </div>
+  
+  <div class="header-actions">
+    <button class="btn btn-clear" onclick="clearAssignments()">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path>
+      </svg>
+      Listeyi Temizle
+    </button>
+    <button class="btn btn-photo" onclick="generateScreenshot()">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+      </svg>
+      Liste Fotoğrafı Al
+    </button>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat">
+    <div class="stat-num" id="stat-total">0</div>
+    <div class="stat-lbl">Toplam Çalışan</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num" id="stat-assigned">0</div>
+    <div class="stat-lbl">Atanan</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num" id="stat-free">0</div>
+    <div class="stat-lbl">Atanmayan</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num" id="stat-sites">0</div>
+    <div class="stat-lbl">Şantiye</div>
+  </div>
+</div>
+
+<div class="app">
+
+  <div class="workers-panel" id="workers-panel">
+    <div class="panel-head">
+      <span class="panel-title">👷 ÇALIŞANLAR</span>
+      <span class="badge" id="worker-count">0</span>
+    </div>
+    <div class="add-row">
+      <input type="text" id="new-worker-input" placeholder="Çalışan adı ekle..." maxlength="50">
+      <button class="btn" onclick="addWorker()">+ Ekle</button>
+    </div>
+    <div class="search-row">
+      <input class="search-inp" type="text" id="search-input" placeholder="Çalışan ara..." oninput="filterWorkers()">
+    </div>
+    <div class="workers-list" id="workers-list"></div>
+  </div>
+
+  <div class="sites-panel">
+    <div class="sites-topbar">
+      <span class="sites-topbar-title">🏗 ŞANTİYELER</span>
+      <div class="add-site-row">
+        <input type="text" id="new-site-input" placeholder="Şantiye adı..." maxlength="40">
+        <button class="btn" onclick="addSite()">+ Şantiye</button>
+      </div>
+    </div>
+    <div class="sites-grid" id="sites-grid"></div>
+  </div>
+
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+const STORAGE_KEY = 'santiye_v3';
+
+const defaultWorkers = [
+  "Harun Tülek","Murat Kaya","Erhan Gümüşel","Abdullah Kozan","Abdullah Şeyhanlıgil",
+  "Efe Olgun","Remzi Aksoy","Mehmet ERASLAN","Zekeriya Küçük","Tayfun Kargın",
+  "İbrahim Can Koçer","Ersin Ulaş","Hıdır Yarıcı","İlhan Yarıcı","Ahmet Altun",
+  "Mustafa Aydın","Ali Kenan Doğan","Sedat Sevin","Hüryan Erçen","Mehmet Işık",
+  "Mustafa Gürgen","Mazlum Beytekin","Hüseyin Karcı","Hayri Er","Fahri Yıldız",
+  "Behice TAP","Sedat Kaysadı","Özcan Yıldırım","Abdullah Öztürk","Mehmet Orhan",
+  "Harun Gülbahar","Tarkan Batman","Yaşar Gül","Ali Aksu","Burhan Ayyıldız",
+  "Halil İbrahim Erdoğan","Oğuz Caymaz","Furkan Başyiğit","Kayhan Olgun"
+];
+
+const defaultSites = ["Petka","Aspet","Anadolu Cam","Çimento","MKK","Hava Alanı","Yonca"];
+
+let state = { workers: [], sites: [], assignments: {} };
+let searchTerm = '';
+let draggedWorkerId = null; // Hangi çalışanın sürüklendiğini tutar
+
+function load() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) { state = JSON.parse(saved); return; }
+  } catch(e) {}
+  state.workers = defaultWorkers.map((n,i) => ({ id:'w'+i, name:n }));
+  state.sites   = defaultSites.map((n,i)   => ({ id:'s'+i, name:n }));
+  state.assignments = {};
+}
+
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function uid(p) { return p + Date.now() + Math.random().toString(36).slice(2,5); }
+
+function initials(name) {
+  return name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+
+function getWorkerSiteId(wid) {
+  for (const [sid, wids] of Object.entries(state.assignments))
+    if (wids.includes(wid)) return sid;
+  return '';
+}
+
+function getSiteWorkers(sid) {
+  return (state.assignments[sid] || []).map(id => state.workers.find(w=>w.id===id)).filter(Boolean);
+}
+
+function assign(wid, sid) {
+  for (const s in state.assignments)
+    state.assignments[s] = state.assignments[s].filter(x=>x!==wid);
+  if (sid) {
+    if (!state.assignments[sid]) state.assignments[sid] = [];
+    state.assignments[sid].push(wid);
+  }
+  save();
+}
+
+// SÜRÜKLE BIRAK YARDIMCI FONKSİYONLARI
+function startDragWorker(e, wid) {
+  draggedWorkerId = wid;
+  e.target.style.opacity = '0.4';
+  document.body.classList.add('is-dragging');
+}
+
+function endDragWorker(e) {
+  draggedWorkerId = null;
+  e.target.style.opacity = '1';
+  document.body.classList.remove('is-dragging');
+  renderAll(); 
+}
+
+function renderAll() { renderWorkers(); renderSites(); updateStats(); }
+
+function renderWorkers() {
+  const list = document.getElementById('workers-list');
+  const term = searchTerm.toLowerCase();
+  const visible = state.workers.filter(w => w.name.toLowerCase().includes(term))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+
+  list.innerHTML = '';
+  visible.forEach(w => {
+    const currentSid = getWorkerSiteId(w.id);
+    const opts = state.sites.map(s =>
+      `<option value="${s.id}" ${s.id === currentSid ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+
+    const row = document.createElement('div');
+    row.className = 'worker-row';
+    
+    // Sol paneldeki çalışanı sürüklenebilir yap
+    row.draggable = true;
+    row.ondragstart = (e) => startDragWorker(e, w.id);
+    row.ondragend = (e) => endDragWorker(e);
+
+    row.innerHTML = `
+      <div class="w-avatar">${initials(w.name)}</div>
+      <span class="w-name" title="${w.name}">${w.name}</span>
+      <select class="w-select ${currentSid ? 'assigned' : ''}" data-wid="${w.id}" onchange="onSelectChange(this)">
+        <option value="">— Seç —</option>
+        ${opts}
+      </select>
+      <button class="w-del" onclick="deleteWorker('${w.id}')" title="Sil">✕</button>
+    `;
+    list.appendChild(row);
+  });
+
+  document.getElementById('worker-count').textContent = state.workers.length;
+}
+
+function onSelectChange(sel) {
+  const wid = sel.dataset.wid;
+  const sid = sel.value;
+  const w = state.workers.find(x=>x.id===wid);
+  const s = state.sites.find(x=>x.id===sid);
+  assign(wid, sid);
+  sel.className = 'w-select' + (sid ? ' assigned' : '');
+  if (sid && s) notify(`${w.name} → ${s.name}`);
+  renderSites();
+  updateStats();
+}
+
+function renderSites() {
+  const grid = document.getElementById('sites-grid');
+  grid.innerHTML = '';
+
+  if (!state.sites.length) {
+    grid.innerHTML = `<div class="empty-sites">Henüz şantiye eklenmedi.<br>Sağ üstten şantiye ekleyebilirsiniz.</div>`;
+    return;
+  }
+
+  state.sites.forEach(site => {
+    const workers = getSiteWorkers(site.id);
+    const card = document.createElement('div');
+    card.className = 'site-card';
+    
+    // Şantiye kartlarını "Bırakma Alanı" (Dropzone) yapıyoruz
+    card.ondragover = (e) => {
+      e.preventDefault(); 
+      card.classList.add('drag-over');
+    };
+    
+    card.ondragleave = () => {
+      card.classList.remove('drag-over');
+    };
+    
+    card.ondrop = (e) => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      if (draggedWorkerId) {
+        assign(draggedWorkerId, site.id);
+        const w = state.workers.find(x => x.id === draggedWorkerId);
+        if (w) notify(`${w.name} → ${site.name} atandı`);
+        renderAll();
+      }
+    };
+
+    // Şantiyenin içindeki çalışanları da tekrar sürüklenebilir yapıyoruz (Başka şantiyeye atmak için)
+    const workerRows = workers.length
+      ? workers.map(w => `
+          <div class="sw-item" draggable="true" ondragstart="startDragWorker(event, '${w.id}')" ondragend="endDragWorker(event)">
+            <div class="sw-avatar">${initials(w.name)}</div>
+            <span class="sw-name">${w.name}</span>
+            <button class="sw-remove" onclick="removeWorker('${w.id}')" title="Çıkar">×</button>
+          </div>`).join('')
+      : `<div class="site-empty">Henüz çalışan atanmadı</div>`;
+
+    card.innerHTML = `
+      <div class="site-card-header">
+        <span class="site-name-label">${site.name}</span>
+        <div class="site-meta">
+          <span class="site-count">👷 ${workers.length}</span>
+          <button class="site-del-btn" onclick="deleteSite('${site.id}')" title="Şantiyeyi sil">✕</button>
+        </div>
+      </div>
+      <div class="site-workers">${workerRows}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// SOL PANELİ "BOŞA ÇIKARMA" ALANI YAPMA (Şantiyeden sola sürüklenirse atama silinir)
+const workersPanel = document.getElementById('workers-panel');
+workersPanel.ondragover = (e) => {
+  e.preventDefault();
+  workersPanel.classList.add('drag-over');
+};
+workersPanel.ondragleave = () => {
+  workersPanel.classList.remove('drag-over');
+};
+workersPanel.ondrop = (e) => {
+  e.preventDefault();
+  workersPanel.classList.remove('drag-over');
+  if (draggedWorkerId) {
+    assign(draggedWorkerId, '');
+    renderAll();
+  }
+};
+
+function updateStats() {
+  const total = state.workers.length;
+  let assigned = new Set();
+  for (const wids of Object.values(state.assignments))
+    wids.forEach(id => { if (state.workers.find(w=>w.id===id)) assigned.add(id); });
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-assigned').textContent = assigned.size;
+  document.getElementById('stat-free').textContent = total - assigned.size;
+  document.getElementById('stat-sites').textContent = state.sites.length;
+}
+
+function addWorker() {
+  const inp = document.getElementById('new-worker-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  state.workers.push({ id: uid('w'), name });
+  save(); inp.value = '';
+  renderAll();
+  notify(`${name} eklendi`);
+}
+
+function deleteWorker(wid) {
+  const w = state.workers.find(x=>x.id===wid);
+  if (!confirm(`"${w?.name}" silinsin mi?`)) return;
+  assign(wid, '');
+  state.workers = state.workers.filter(x=>x.id!==wid);
+  save(); renderAll();
+}
+
+function removeWorker(wid) {
+  assign(wid, '');
+  renderAll();
+}
+
+function addSite() {
+  const inp = document.getElementById('new-site-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  state.sites.push({ id: uid('s'), name });
+  save(); inp.value = '';
+  renderAll();
+  notify(`"${name}" şantiyesi eklendi`);
+}
+
+function deleteSite(sid) {
+  const s = state.sites.find(x=>x.id===sid);
+  if (!confirm(`"${s?.name}" silinsin mi? Çalışan atamaları kaldırılacak.`)) return;
+  state.sites = state.sites.filter(x=>x.id!==sid);
+  delete state.assignments[sid];
+  save(); renderAll();
+}
+
+// TÜM LİSTEYİ TEMİZLEME FONKSİYONU
+function clearAssignments() {
+  if (!confirm("Tüm atamaları silmek ve herkesi boşa çıkarmak istediğinize emin misiniz?")) return;
+  
+  state.assignments = {};
+  save();
+  renderAll();
+  notify("Tüm atamalar sıfırlandı!");
+}
+
+function filterWorkers() {
+  searchTerm = document.getElementById('search-input').value;
+  renderWorkers();
+}
+
+document.getElementById('new-worker-input').addEventListener('keydown', e => { if(e.key==='Enter') addWorker(); });
+document.getElementById('new-site-input').addEventListener('keydown',  e => { if(e.key==='Enter') addSite(); });
+
+let notifTimer;
+function notify(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = '✓ ' + msg;
+  el.classList.add('show');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+// FOTOĞRAF OLUŞTURMA FONKSİYONU
+function generateScreenshot() {
+  notify("Fotoğraf hazırlanıyor, lütfen bekleyin...");
+
+  // Arka planda görünmez bir alan (container) oluşturuyoruz
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '1000px'; 
+  container.style.backgroundColor = '#1a1a1a';
+  container.style.color = '#f0ece4';
+  container.style.padding = '40px';
+  container.style.boxSizing = 'border-box';
+  container.style.fontFamily = "'IBM Plex Sans', sans-serif";
+
+  const dateStr = new Date().toLocaleDateString('tr-TR');
+
+  // Başlık Kısmı (Değiştirildi)
+  let html = `
+    <div style="text-align: center; border-bottom: 2px solid #f5a623; padding-bottom: 15px; margin-bottom: 30px;">
+      <h1 style="font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: #f5a623; margin: 0; letter-spacing: 2px;">ÇALIŞMA LİSTESİ</h1>
+      <p style="color: #8a8680; margin: 5px 0 0 0; font-size: 1.1rem;">Tarih: ${dateStr}</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+  `;
+
+  // Şantiyelere Atananlar
+  state.sites.forEach(site => {
+    const workers = getSiteWorkers(site.id);
+    if(workers.length > 0) {
+        html += `
+          <div style="background: #242424; border: 1px solid #2e2e2e; border-radius: 8px; padding: 15px;">
+            <h3 style="color: #f5a623; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #2e2e2e; padding-bottom: 8px;">
+              ${site.name} <span style="font-size: 0.85rem; color: #8a8680; float: right;">(${workers.length} Kişi)</span>
+            </h3>
+            <ul style="list-style-type: none; padding: 0; margin: 0;">
+              ${workers.map((w, index) => `<li style="padding: 5px 0; font-size: 0.95rem; border-bottom: 1px dashed #333;">${index + 1}. ${w.name}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+    }
+  });
+
+  // Atanmayan Boştaki Çalışanlar
+  const unassigned = state.workers.filter(w => !getWorkerSiteId(w.id));
+  if(unassigned.length > 0) {
+     html += `
+          <div style="background: #242424; border: 1px solid #e53935; border-radius: 8px; padding: 15px;">
+            <h3 style="color: #e53935; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #2e2e2e; padding-bottom: 8px;">
+              Boştaki Çalışanlar <span style="font-size: 0.85rem; color: #8a8680; float: right;">(${unassigned.length} Kişi)</span>
+            </h3>
+            <ul style="list-style-type: none; padding: 0; margin: 0;">
+              ${unassigned.map((w, index) => `<li style="padding: 5px 0; font-size: 0.95rem; border-bottom: 1px dashed #333;">${index + 1}. ${w.name}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+  }
+
+  html += `</div>`; // Grid alanını kapatıyoruz
+  
+  // Alt Not Kısmı (Yeni Eklendi)
+  html += `
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px dashed #f5a623; text-align: center; color: #f0ece4; font-size: 1.1rem; line-height: 1.5;">
+      Şantiyesi değişen arkadaşlar kıyafet, ayakkabı, baret, gerekli ekipman ve takımlarını da yanlarında almalarını rica eder,<br>
+      <strong style="color: #f5a623;">İyi çalışmalar dilerim.</strong>
+    </div>
+  `;
+
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  // Kütüphane yardımıyla HTML'i Canvas'a (Resme) dönüştür
+  html2canvas(container, {
+    backgroundColor: '#1a1a1a',
+    scale: 2 // Yüksek çözünürlük için
+  }).then(canvas => {
+    // Fotoğrafı veri formatına (base64) çevir
+    const imgData = canvas.toDataURL('image/png');
+    
+    // YENİ PENCEREDE AÇMA İŞLEMİ
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>Çalışma Listesi - ${dateStr}</title>
+            <style>
+              body { 
+                margin: 0; 
+                padding: 40px; 
+                background: #0f0f0f; 
+                display: flex; 
+                justify-content: center; 
+                align-items: flex-start;
+                min-height: 100vh;
+              }
+              img { 
+                max-width: 100%; 
+                height: auto; 
+                border-radius: 8px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${imgData}" alt="Çalışma Listesi" />
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+      notify("Fotoğraf yeni sekmede açıldı!");
+    } else {
+      // Tarayıcının pop-up engelleyicisi açıksa uyarı ver
+      alert("Tarayıcınız yeni pencere açılmasını engelledi. Lütfen adres çubuğundan pop-up'lara izin verin.");
+      notify("Hata: Pop-up engellendi.");
+    }
+    
+    // Geçici alanı temizle
+    document.body.removeChild(container);
+  }).catch(err => {
+    console.error(err);
+    notify("Fotoğraf oluşturulurken bir hata oluştu.");
+    document.body.removeChild(container);
+  });
+}
+
+load();
+renderAll();
+</script>
+</body>
+</html>
