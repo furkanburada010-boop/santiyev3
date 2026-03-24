@@ -71,10 +71,12 @@
     display: flex;
     background: var(--surface2);
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
   }
 
   .stat {
     flex: 1;
+    min-width: 80px;
     padding: 10px 20px;
     border-right: 1px solid var(--border);
     text-align: center;
@@ -252,7 +254,7 @@
     border-radius: 4px;
     outline: none;
     cursor: pointer;
-    max-width: 115px;
+    max-width: 125px;
     transition: border-color 0.2s;
   }
   .w-select:focus { border-color: var(--accent); }
@@ -473,7 +475,7 @@
     .app { grid-template-columns: 1fr; height: auto; }
     .workers-panel { max-height: 55vh; }
     .stats { flex-wrap: wrap; }
-    .stat { min-width: 50%; }
+    .stat { min-width: 30%; }
     .sites-topbar { flex-direction: column; align-items: flex-start; }
     header { flex-direction: column; align-items: stretch; gap: 15px; }
     .header-actions { flex-direction: column; }
@@ -516,19 +518,23 @@
 <div class="stats">
   <div class="stat">
     <div class="stat-num" id="stat-total">0</div>
-    <div class="stat-lbl">Toplam Çalışan</div>
+    <div class="stat-lbl">Toplam</div>
   </div>
   <div class="stat">
     <div class="stat-num" id="stat-assigned">0</div>
-    <div class="stat-lbl">Atanan</div>
+    <div class="stat-lbl">Şantiyede</div>
   </div>
   <div class="stat">
     <div class="stat-num" id="stat-free">0</div>
-    <div class="stat-lbl">Atanmayan</div>
+    <div class="stat-lbl">Boşta</div>
   </div>
   <div class="stat">
-    <div class="stat-num" id="stat-sites">0</div>
-    <div class="stat-lbl">Şantiye</div>
+    <div class="stat-num" id="stat-izinli" style="color: #f5a623;">0</div>
+    <div class="stat-lbl">İzinli</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num" id="stat-izinsiz" style="color: #e53935;">0</div>
+    <div class="stat-lbl">İzinsiz</div>
   </div>
 </div>
 
@@ -558,6 +564,11 @@
       </div>
     </div>
     <div class="sites-grid" id="sites-grid"></div>
+    
+    <div class="sites-topbar" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <span class="sites-topbar-title" style="color: #8a8680;">🚫 GELMEYENLER</span>
+    </div>
+    <div class="sites-grid" id="absent-grid"></div>
   </div>
 
 </div>
@@ -582,7 +593,7 @@ const defaultSites = ["Petka","Aspet","Anadolu Cam","Çimento","MKK","Hava Alan�
 
 let state = { workers: [], sites: [], assignments: {} };
 let searchTerm = '';
-let draggedWorkerId = null; // Hangi çalışanın sürüklendiğini tutar
+let draggedWorkerId = null; 
 
 function load() {
   try {
@@ -635,7 +646,7 @@ function endDragWorker(e) {
   renderAll(); 
 }
 
-function renderAll() { renderWorkers(); renderSites(); updateStats(); }
+function renderAll() { renderWorkers(); renderSitesAndAbsent(); updateStats(); }
 
 function renderWorkers() {
   const list = document.getElementById('workers-list');
@@ -646,14 +657,13 @@ function renderWorkers() {
   list.innerHTML = '';
   visible.forEach(w => {
     const currentSid = getWorkerSiteId(w.id);
-    const opts = state.sites.map(s =>
-      `<option value="${s.id}" ${s.id === currentSid ? 'selected' : ''}>${s.name}</option>`
-    ).join('');
-
+    
+    // Şantiye seçenekleri
+    const siteOpts = state.sites.map(s => `<option value="${s.id}" ${s.id === currentSid ? 'selected' : ''}>${s.name}</option>`).join('');
+    
     const row = document.createElement('div');
     row.className = 'worker-row';
     
-    // Sol paneldeki çalışanı sürüklenebilir yap
     row.draggable = true;
     row.ondragstart = (e) => startDragWorker(e, w.id);
     row.ondragend = (e) => endDragWorker(e);
@@ -662,8 +672,14 @@ function renderWorkers() {
       <div class="w-avatar">${initials(w.name)}</div>
       <span class="w-name" title="${w.name}">${w.name}</span>
       <select class="w-select ${currentSid ? 'assigned' : ''}" data-wid="${w.id}" onchange="onSelectChange(this)">
-        <option value="">— Seç —</option>
-        ${opts}
+        <option value="">— Seç / Boşta —</option>
+        <optgroup label="Şantiyeler">
+          ${siteOpts}
+        </optgroup>
+        <optgroup label="Gelmeyenler">
+          <option value="izinli" ${currentSid === 'izinli' ? 'selected' : ''}>İzinli</option>
+          <option value="izinsiz" ${currentSid === 'izinsiz' ? 'selected' : ''}>İzinsiz</option>
+        </optgroup>
       </select>
       <button class="w-del" onclick="deleteWorker('${w.id}')" title="Sil">✕</button>
     `;
@@ -677,71 +693,80 @@ function onSelectChange(sel) {
   const wid = sel.dataset.wid;
   const sid = sel.value;
   const w = state.workers.find(x=>x.id===wid);
-  const s = state.sites.find(x=>x.id===sid);
   assign(wid, sid);
   sel.className = 'w-select' + (sid ? ' assigned' : '');
-  if (sid && s) notify(`${w.name} → ${s.name}`);
-  renderSites();
+  if (sid && w) {
+      if(sid === 'izinli') notify(`${w.name} → İzinli işaretlendi`);
+      else if(sid === 'izinsiz') notify(`${w.name} → İzinsiz işaretlendi`);
+      else {
+          const s = state.sites.find(x=>x.id===sid);
+          if(s) notify(`${w.name} → ${s.name}`);
+      }
+  }
+  renderSitesAndAbsent();
   updateStats();
 }
 
-function renderSites() {
-  const grid = document.getElementById('sites-grid');
-  grid.innerHTML = '';
+// Şantiyeleri ve Gelmeyenler (İzinli/İzinsiz) Kutularını oluşturur
+function createDropzoneCard(id, name, isSite, themeColor = 'var(--accent2)') {
+  const workers = getSiteWorkers(id);
+  const card = document.createElement('div');
+  card.className = 'site-card';
+  
+  card.ondragover = (e) => { e.preventDefault(); card.classList.add('drag-over'); };
+  card.ondragleave = () => { card.classList.remove('drag-over'); };
+  card.ondrop = (e) => {
+    e.preventDefault();
+    card.classList.remove('drag-over');
+    if (draggedWorkerId) {
+      assign(draggedWorkerId, id);
+      const w = state.workers.find(x => x.id === draggedWorkerId);
+      if (w) notify(`${w.name} → ${name}`);
+      renderAll();
+    }
+  };
 
-  if (!state.sites.length) {
-    grid.innerHTML = `<div class="empty-sites">Henüz şantiye eklenmedi.<br>Sağ üstten şantiye ekleyebilirsiniz.</div>`;
-    return;
-  }
+  const workerRows = workers.length
+    ? workers.map(w => `
+        <div class="sw-item" draggable="true" ondragstart="startDragWorker(event, '${w.id}')" ondragend="endDragWorker(event)">
+          <div class="sw-avatar">${initials(w.name)}</div>
+          <span class="sw-name">${w.name}</span>
+          <button class="sw-remove" onclick="removeWorker('${w.id}')" title="Çıkar">×</button>
+        </div>`).join('')
+    : `<div class="site-empty">Kimse yok</div>`;
 
-  state.sites.forEach(site => {
-    const workers = getSiteWorkers(site.id);
-    const card = document.createElement('div');
-    card.className = 'site-card';
-    
-    // Şantiye kartlarını "Bırakma Alanı" (Dropzone) yapıyoruz
-    card.ondragover = (e) => {
-      e.preventDefault(); 
-      card.classList.add('drag-over');
-    };
-    
-    card.ondragleave = () => {
-      card.classList.remove('drag-over');
-    };
-    
-    card.ondrop = (e) => {
-      e.preventDefault();
-      card.classList.remove('drag-over');
-      if (draggedWorkerId) {
-        assign(draggedWorkerId, site.id);
-        const w = state.workers.find(x => x.id === draggedWorkerId);
-        if (w) notify(`${w.name} → ${site.name} atandı`);
-        renderAll();
-      }
-    };
+  const delBtn = isSite ? `<button class="site-del-btn" onclick="deleteSite('${id}')" title="Şantiyeyi sil">✕</button>` : '';
 
-    // Şantiyenin içindeki çalışanları da tekrar sürüklenebilir yapıyoruz (Başka şantiyeye atmak için)
-    const workerRows = workers.length
-      ? workers.map(w => `
-          <div class="sw-item" draggable="true" ondragstart="startDragWorker(event, '${w.id}')" ondragend="endDragWorker(event)">
-            <div class="sw-avatar">${initials(w.name)}</div>
-            <span class="sw-name">${w.name}</span>
-            <button class="sw-remove" onclick="removeWorker('${w.id}')" title="Çıkar">×</button>
-          </div>`).join('')
-      : `<div class="site-empty">Henüz çalışan atanmadı</div>`;
-
-    card.innerHTML = `
-      <div class="site-card-header">
-        <span class="site-name-label">${site.name}</span>
-        <div class="site-meta">
-          <span class="site-count">👷 ${workers.length}</span>
-          <button class="site-del-btn" onclick="deleteSite('${site.id}')" title="Şantiyeyi sil">✕</button>
-        </div>
+  card.innerHTML = `
+    <div class="site-card-header" style="border-bottom-color: ${themeColor}">
+      <span class="site-name-label" style="color: ${themeColor}">${name}</span>
+      <div class="site-meta">
+        <span class="site-count">👷 ${workers.length}</span>
+        ${delBtn}
       </div>
-      <div class="site-workers">${workerRows}</div>
-    `;
-    grid.appendChild(card);
-  });
+    </div>
+    <div class="site-workers">${workerRows}</div>
+  `;
+  return card;
+}
+
+function renderSitesAndAbsent() {
+  const sitesGrid = document.getElementById('sites-grid');
+  sitesGrid.innerHTML = '';
+
+  if (state.sites.length === 0) {
+    sitesGrid.innerHTML = `<div class="empty-sites">Henüz şantiye eklenmedi.<br>Sağ üstten şantiye ekleyebilirsiniz.</div>`;
+  } else {
+    state.sites.forEach(site => {
+      sitesGrid.appendChild(createDropzoneCard(site.id, site.name, true, 'var(--accent2)'));
+    });
+  }
+  
+  // Gelmeyenler kutuları
+  const absentGrid = document.getElementById('absent-grid');
+  absentGrid.innerHTML = '';
+  absentGrid.appendChild(createDropzoneCard('izinli', 'İzinli', false, '#f5a623'));
+  absentGrid.appendChild(createDropzoneCard('izinsiz', 'İzinsiz', false, '#e53935'));
 }
 
 // SOL PANELİ "BOŞA ÇIKARMA" ALANI YAPMA (Şantiyeden sola sürüklenirse atama silinir)
@@ -764,13 +789,22 @@ workersPanel.ondrop = (e) => {
 
 function updateStats() {
   const total = state.workers.length;
-  let assigned = new Set();
-  for (const wids of Object.values(state.assignments))
-    wids.forEach(id => { if (state.workers.find(w=>w.id===id)) assigned.add(id); });
+  let assigned = 0;
+  let izinli = 0;
+  let izinsiz = 0;
+  
+  for (const [sid, wids] of Object.entries(state.assignments)) {
+      const validWids = wids.filter(id => state.workers.find(w=>w.id===id));
+      if(sid === 'izinli') izinli += validWids.length;
+      else if (sid === 'izinsiz') izinsiz += validWids.length;
+      else assigned += validWids.length;
+  }
+  
   document.getElementById('stat-total').textContent = total;
-  document.getElementById('stat-assigned').textContent = assigned.size;
-  document.getElementById('stat-free').textContent = total - assigned.size;
-  document.getElementById('stat-sites').textContent = state.sites.length;
+  document.getElementById('stat-assigned').textContent = assigned;
+  document.getElementById('stat-free').textContent = total - assigned - izinli - izinsiz;
+  document.getElementById('stat-izinli').textContent = izinli;
+  document.getElementById('stat-izinsiz').textContent = izinsiz;
 }
 
 function addWorker() {
@@ -817,7 +851,6 @@ function deleteSite(sid) {
 // TÜM LİSTEYİ TEMİZLEME FONKSİYONU
 function clearAssignments() {
   if (!confirm("Tüm atamaları silmek ve herkesi boşa çıkarmak istediğinize emin misiniz?")) return;
-  
   state.assignments = {};
   save();
   renderAll();
@@ -845,7 +878,6 @@ function notify(msg) {
 function generateScreenshot() {
   notify("Fotoğraf hazırlanıyor, lütfen bekleyin...");
 
-  // Arka planda görünmez bir alan (container) oluşturuyoruz
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.left = '-9999px';
@@ -859,7 +891,6 @@ function generateScreenshot() {
 
   const dateStr = new Date().toLocaleDateString('tr-TR');
 
-  // Başlık Kısmı (Değiştirildi)
   let html = `
     <div style="text-align: center; border-bottom: 2px solid #f5a623; padding-bottom: 15px; margin-bottom: 30px;">
       <h1 style="font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: #f5a623; margin: 0; letter-spacing: 2px;">ÇALIŞMA LİSTESİ</h1>
@@ -889,8 +920,8 @@ function generateScreenshot() {
   const unassigned = state.workers.filter(w => !getWorkerSiteId(w.id));
   if(unassigned.length > 0) {
      html += `
-          <div style="background: #242424; border: 1px solid #e53935; border-radius: 8px; padding: 15px;">
-            <h3 style="color: #e53935; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #2e2e2e; padding-bottom: 8px;">
+          <div style="background: #242424; border: 1px solid #8a8680; border-radius: 8px; padding: 15px;">
+            <h3 style="color: #8a8680; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #2e2e2e; padding-bottom: 8px;">
               Boştaki Çalışanlar <span style="font-size: 0.85rem; color: #8a8680; float: right;">(${unassigned.length} Kişi)</span>
             </h3>
             <ul style="list-style-type: none; padding: 0; margin: 0;">
@@ -902,7 +933,47 @@ function generateScreenshot() {
 
   html += `</div>`; // Grid alanını kapatıyoruz
   
-  // Alt Not Kısmı (Yeni Eklendi)
+  // Gelmeyenler (İzinli / İzinsiz) Alanı
+  const izinliWorkers = getSiteWorkers('izinli');
+  const izinsizWorkers = getSiteWorkers('izinsiz');
+  
+  if(izinliWorkers.length > 0 || izinsizWorkers.length > 0) {
+      html += `
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #2e2e2e;">
+          <h2 style="color: #8a8680; margin: 0 0 15px 0; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 1.5rem;">🚫 GELMEYENLER</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+      `;
+      
+      if(izinliWorkers.length > 0) {
+          html += `
+            <div style="background: #242424; border: 1px solid #f5a623; border-radius: 8px; padding: 15px;">
+              <h3 style="color: #f5a623; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #2e2e2e; padding-bottom: 8px;">
+                İzinli <span style="font-size: 0.85rem; color: #8a8680; float: right;">(${izinliWorkers.length} Kişi)</span>
+              </h3>
+              <ul style="list-style-type: none; padding: 0; margin: 0;">
+                ${izinliWorkers.map((w, index) => `<li style="padding: 5px 0; font-size: 0.95rem; border-bottom: 1px dashed #333;">${index + 1}. ${w.name}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+      }
+      
+      if(izinsizWorkers.length > 0) {
+          html += `
+            <div style="background: #242424; border: 1px solid #e53935; border-radius: 8px; padding: 15px;">
+              <h3 style="color: #e53935; margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #2e2e2e; padding-bottom: 8px;">
+                İzinsiz <span style="font-size: 0.85rem; color: #8a8680; float: right;">(${izinsizWorkers.length} Kişi)</span>
+              </h3>
+              <ul style="list-style-type: none; padding: 0; margin: 0;">
+                ${izinsizWorkers.map((w, index) => `<li style="padding: 5px 0; font-size: 0.95rem; border-bottom: 1px dashed #333;">${index + 1}. ${w.name}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+      }
+      
+      html += `</div></div>`;
+  }
+  
+  // Alt Not Kısmı
   html += `
     <div style="margin-top: 30px; padding-top: 20px; border-top: 2px dashed #f5a623; text-align: center; color: #f0ece4; font-size: 1.1rem; line-height: 1.5;">
       Şantiyesi değişen arkadaşlar kıyafet, ayakkabı, baret, gerekli ekipman ve takımlarını da yanlarında almalarını rica eder,<br>
