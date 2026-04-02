@@ -499,6 +499,8 @@
   </div>
   
   <div class="header-actions">
+    <input type="date" id="report-date" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0 10px; font-family: 'IBM Plex Sans', sans-serif; outline: none; cursor: pointer; height: 34px; margin-top: auto; margin-bottom: auto; color-scheme: dark;">
+    
     <button class="btn btn-clear" onclick="clearAssignments()">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path>
@@ -889,7 +891,15 @@ function generateScreenshot() {
   container.style.boxSizing = 'border-box';
   container.style.fontFamily = "'IBM Plex Sans', sans-serif";
 
-  const dateStr = new Date().toLocaleDateString('tr-TR');
+  // SEÇİLEN TARİHİ ALMA KISMI
+  const selectedDate = document.getElementById('report-date').value;
+  let dateStr;
+  if (selectedDate) {
+    const [year, month, day] = selectedDate.split('-');
+    dateStr = `${day}.${month}.${year}`;
+  } else {
+    dateStr = new Date().toLocaleDateString('tr-TR'); // Boş bırakılırsa bugünün tarihini atar
+  }
 
   let html = `
     <div style="text-align: center; border-bottom: 2px solid #f5a623; padding-bottom: 15px; margin-bottom: 30px;">
@@ -1041,6 +1051,9 @@ function generateScreenshot() {
 
 load();
 renderAll();
+
+// Sayfa yüklendiğinde tarih kutusuna bugünün tarihini otomatik yazdırır
+document.getElementById('report-date').valueAsDate = new Date();
 </script>
 </body>
 </html>
